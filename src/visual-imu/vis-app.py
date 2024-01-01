@@ -12,6 +12,7 @@ accPitch = []
 accRoll = []
 PORT = "/dev/cu.usbmodem14201"
 BAUD_RATE = 115200
+jsonOutput = False
 
 plt.ion() ## Note this correction
 fig = plt.figure(figsize=(15, 8))
@@ -23,7 +24,7 @@ kalmanPlot = fig.add_subplot(2, 1, 2)
 kalmanPlot.set_ylim(-90, 90)
 
 def read_imu_data():
-  global kalmanPitch, kalmanRoll, accPitch, accRoll
+  global kalmanPitch, kalmanRoll, accPitch, accRoll, jsonOutput
 
   ser = serial.Serial(PORT, BAUD_RATE)
   epoch = 0
@@ -31,26 +32,38 @@ def read_imu_data():
     try:
       # {"imu": {"accelerometer" : { "pitch": -2.95, "roll": 5.08, "x": 0.53, "y": 0.91, "z": 10.22 }, "gyro" : { "x": 0.07, "y": 0.03, "z": -0.07 }, "kalman": { "pitch": -3.20, "roll": 5.25}}}
       data = ser.readline().decode("utf-8") 
-      data = data.replace("\'", "\"")
-      # print(data)
+      if(jsonOutput == True):
+        data = data.replace("\'", "\"")
+        # print(data)
 
-      jdata = json.loads(data)
-      kpitch = jdata['imu']['kalman']['pitch']
-      kroll = jdata['imu']['kalman']['roll']
-      acc_pitch = jdata['imu']['accelerometer']['pitch']
-      acc_roll = jdata['imu']['accelerometer']['roll']
-      epoch = time.time()
-      print(str(epoch) + " >> pitch: " + str(kpitch) + ", roll: " + str(kroll))
+        jdata = json.loads(data)
+        kpitch = jdata['imu']['kalman']['pitch']
+        kroll = jdata['imu']['kalman']['roll']
+        acc_pitch = jdata['imu']['accelerometer']['pitch']
+        acc_roll = jdata['imu']['accelerometer']['roll']
+        epoch = time.time()
+        print(str(epoch) + " >> pitch: " + str(kpitch) + ", roll: " + str(kroll))
 
-      kalmanPitch.append(float(kpitch))
-      kalmanRoll.append(float(kroll))
-      kalmanPitch = kalmanPitch[-3000:] 
-      kalmanRoll = kalmanRoll[-3000:]
+        kalmanPitch.append(float(kpitch))
+        kalmanRoll.append(float(kroll))
+        kalmanPitch = kalmanPitch[-3000:] 
+        kalmanRoll = kalmanRoll[-3000:]
 
-      accPitch.append(acc_pitch)
-      accRoll.append(acc_roll)
-      accPitch = accPitch[-3000:]
-      accRoll = accRoll[-3000:]
+        accPitch.append(acc_pitch)
+        accRoll.append(acc_roll)
+        accPitch = accPitch[-3000:]
+        accRoll = accRoll[-3000:]
+      else:
+        token = data.split(',')
+        accPitch.append(float(token[6]))
+        accRoll.append(float(token[7]))
+        accPitch = accPitch[-3000:]
+        accRoll = accRoll[-3000:]
+
+        kalmanPitch.append(float(token[8]))
+        kalmanRoll.append(float(token[9]))
+        kalmanPitch = kalmanPitch[-3000:] 
+        kalmanRoll = kalmanRoll[-3000:]
 
     except Exception as exp:
       print("Got exception in serial: " + str(exp))
