@@ -54,6 +54,7 @@ def read_imu_data():
         accPitch = accPitch[-3000:]
         accRoll = accRoll[-3000:]
       else:
+        # acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, acc_pitch, acc_roll, kalman_pitch, kalman_roll, tempC
         token = data.split(',')
         accPitch.append(float(token[6]))
         accRoll.append(float(token[7]))
