@@ -10,21 +10,36 @@ kalmanPitch = []
 kalmanRoll = []
 accPitch = []
 accRoll = []
-PORT = "/dev/cu.usbmodem14201"
+accX = []
+accY = []
+accZ = []
+gyroX = []
+gyroY = []
+gyroZ = []
+
+
+# PORT = "/dev/cu.usbmodem14201"
+PORT = "COM4"
 BAUD_RATE = 115200
 jsonOutput = False
 
 plt.ion() ## Note this correction
-fig = plt.figure(figsize=(15, 8))
+fig = plt.figure(figsize=(18, 9))
 
-accPlot = fig.add_subplot(2, 1, 1)
-accPlot.set_ylim(-90, 90)
+accPlot = fig.add_subplot(2, 2, 1)
+# accPlot.set_ylim(-90, 90)
 
-kalmanPlot = fig.add_subplot(2, 1, 2)
-kalmanPlot.set_ylim(-90, 90)
+kalmanPlot = fig.add_subplot(2, 2, 2)
+# kalmanPlot.set_ylim(-90, 90)
+
+accAxisPlot = fig.add_subplot(2, 2, 3)
+# accAxisPlot.set_ylim(-90, 90)
+
+gyroAxisPlot = fig.add_subplot(2, 2, 4)
+# accAxisPlot.set_ylim(-90, 90)
 
 def read_imu_data():
-  global kalmanPitch, kalmanRoll, accPitch, accRoll, jsonOutput
+  global kalmanPitch, kalmanRoll, accPitch, accRoll, accX, accY, accZ, gyroX, gyroY, gyroZ, jsonOutput
 
   ser = serial.Serial(PORT, BAUD_RATE)
   epoch = 0
@@ -56,6 +71,21 @@ def read_imu_data():
       else:
         # acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, acc_pitch, acc_roll, kalman_pitch, kalman_roll, tempC
         token = data.split(',')
+
+        accX.append(float(token[0]))
+        accY.append(float(token[1]))
+        accZ.append(float(token[2]))
+        accX = accX[-3000:]
+        accY = accY[-3000:]
+        accZ = accZ[-3000:]
+
+        gyroX.append(float(token[3]))
+        gyroY.append(float(token[4]))
+        gyroZ.append(float(token[5]))
+        gyroX = gyroX[-3000:]
+        gyroY = gyroY[-3000:]
+        gyroZ = gyroZ[-3000:]
+
         accPitch.append(float(token[6]))
         accRoll.append(float(token[7]))
         accPitch = accPitch[-3000:]
@@ -72,7 +102,7 @@ def read_imu_data():
   
 
 def main():
-  global kalmanPitch, kalmanRoll
+  global kalmanPitch, kalmanRoll, accX, accY, accZ, gyroX, gyroY, gyroZ
 
   imu_thread = threading.Thread(target=read_imu_data, name="IMU")
   imu_thread.daemon = True
@@ -94,6 +124,19 @@ def main():
     accPlot.plot(accPitch, label="Pitch [Acc]")
     accPlot.plot(accRoll, label="Roll [Acc]")
     accPlot.legend()
+
+    accAxisPlot.clear()
+    accAxisPlot.plot(accX, label="Acc X")
+    accAxisPlot.plot(accY, label="Acc Y")
+    accAxisPlot.plot(accZ, label="Acc Z")
+    accAxisPlot.legend()
+
+    gyroAxisPlot.clear()
+    gyroAxisPlot.plot(gyroX, label="Gyro X")
+    gyroAxisPlot.plot(gyroY, label="Gyro Y")
+    gyroAxisPlot.plot(gyroZ, label="Gyro Z")
+    gyroAxisPlot.legend()
+
 
     plt.pause(0.0001)
 

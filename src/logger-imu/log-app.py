@@ -7,15 +7,17 @@ import threading
 import datetime
 
 
-PORT = "/dev/cu.usbmodem14201"
+# PORT = "/dev/cu.usbmodem14201"
+PORT = "COM4"
 BAUD_RATE = 115200
-FILE_EXT = ".csv"
+FILE_EXT = ".dimu"
 MONITORING_INTERVAL = 10.0 # secs
 g_data_cache = []
 g_file_name = ""
 g_mutex_file = threading.Lock()
-g_new_file_interval = 1 # mins
+g_new_file_interval = 60 # mins
 g_json_output = False
+
 
 def gen_new_file(file_prefix):
   global g_file_name, g_new_file_interval, FILE_EXT
@@ -95,6 +97,7 @@ def monitor_operation(interval):
   global g_data_cache
 
   while True:
+    # TODO: Current log file size in the verbose
     print("Queue length is: " + str(len(g_data_cache)))
     print("Current log file name: " + g_file_name)
     time.sleep(interval)
