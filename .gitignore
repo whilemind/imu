@@ -1,5 +1,9 @@
+# ignore mac generate by default. 
+**/.DS_Store
+
 #ignore log folder 
 src/log/*
+
 # Prerequisites
 *.d
 
