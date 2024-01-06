@@ -1,3 +1,5 @@
+#ignore log folder 
+src/log/*
 # Prerequisites
 *.d
 
