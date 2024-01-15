@@ -4,7 +4,8 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 import threading
-
+import argparse
+import socket
 
 kalmanPitch = []
 kalmanRoll = []
@@ -22,6 +23,7 @@ gyroZ = []
 PORT = "COM4"
 BAUD_RATE = 115200
 jsonOutput = False
+params = ""
 
 plt.ion() ## Note this correction
 fig = plt.figure(figsize=(18, 9))
@@ -37,6 +39,35 @@ accAxisPlot = fig.add_subplot(2, 2, 3)
 
 gyroAxisPlot = fig.add_subplot(2, 2, 4)
 # accAxisPlot.set_ylim(-90, 90)
+
+
+def init_parse_arg():
+    parser = argparse.ArgumentParser(description='IMU - data processing and analysing tools.')
+
+    # remote manager.
+    parser.add_argument('-s', '--serial', type=bool, default=False,
+                        help='Connect in serial mode for data.')
+
+    # serial baub rate.
+    parser.add_argument('-b', '--baud_rate', type=int, default=115200,
+                        help='To set the serial baud rate, default is 115200.')
+
+    # serial port
+    parser.add_argument('-c', '--serial_port', type=str, default="/dev/cu.usbmodem14201",
+                        help='Serial port default is /dev/cu.usbmodem14201.')
+
+    # input file name
+    parser.add_argument('-i', '--ip', type=str, default="localhost",
+                        help='Remote server IP address to connect.')
+
+    # serial baub rate.
+    parser.add_argument('-p', '--sock_port', type=int, default=3033,
+                        help='To set remote socket port, default is 3033.')
+
+    args = parser.parse_args()
+
+    return args 
+
 
 def read_imu_data():
   global kalmanPitch, kalmanRoll, accPitch, accRoll, accX, accY, accZ, gyroX, gyroY, gyroZ, jsonOutput
@@ -101,15 +132,76 @@ def read_imu_data():
       time.sleep(1)
   
 
+def read_imu_data_sock():
+  
+  global params, kalmanPitch, kalmanRoll, accPitch, accRoll, accX, accY, accZ, gyroX, gyroY, gyroZ, jsonOutput
+
+
+  # Create a TCP/IP socket
+  sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+  # Connect the socket to the port where the server is listening
+  server_address = (params.ip, params.sock_port)
+  print ("connecting to "+ params.ip +" port "+ str(params.sock_port))
+  try:
+    sock.connect(server_address)
+    
+    while True:
+        # print("Waiting for the data to receive.")
+        data = sock.recv(1024).decode("utf-8")
+        print('received ::' + str(data))
+        if jsonOutput is False:
+          try:
+            token = data.split(',')
+            if(len(token) == 11):
+              accX.append(float(token[0]))
+              accY.append(float(token[1]))
+              accZ.append(float(token[2]))
+              accX = accX[-3000:]
+              accY = accY[-3000:]
+              accZ = accZ[-3000:]
+
+              gyroX.append(float(token[3]))
+              gyroY.append(float(token[4]))
+              gyroZ.append(float(token[5]))
+              gyroX = gyroX[-3000:]
+              gyroY = gyroY[-3000:]
+              gyroZ = gyroZ[-3000:]
+
+              accPitch.append(float(token[6]))
+              accRoll.append(float(token[7]))
+              accPitch = accPitch[-3000:]
+              accRoll = accRoll[-3000:]
+
+              kalmanPitch.append(float(token[8]))
+              kalmanRoll.append(float(token[9]))
+              kalmanPitch = kalmanPitch[-3000:] 
+              kalmanRoll = kalmanRoll[-3000:]
+          except Exception as ex:
+            print("Got exception in data handling. " + str(ex))
+
+  finally:
+      print('closing socket')
+      sock.close()
+
+
 def main():
-  global kalmanPitch, kalmanRoll, accX, accY, accZ, gyroX, gyroY, gyroZ
+  global kalmanPitch, kalmanRoll, accX, accY, accZ, gyroX, gyroY, gyroZ, params
 
-  imu_thread = threading.Thread(target=read_imu_data, name="IMU")
-  imu_thread.daemon = True
-  imu_thread.start()
-  print("imu threa started.")
+  params = init_parse_arg()
 
-  # imu_thread.join()
+  if(params.serial is True):
+    imu_thread = threading.Thread(target=read_imu_data, name="IMU")
+    imu_thread.daemon = True
+    imu_thread.start()
+    print("imu threa started.")
+    # imu_thread.join()
+  else:
+    print("Connecting remote socket.")
+    imu_remote_thread = threading.Thread(target=read_imu_data_sock, name="IMU_REMOTE")
+    imu_remote_thread.daemon = True
+    imu_remote_thread.start()
+
   '''
     We have to handler the matplot in the main thread. 
     This data ploting is also lagging data read from serial port.
