@@ -1,15 +1,8 @@
-/*
-    Kalman Filter Example for MPU6050. Output for processing.
-    Read more: http://www.jarzebski.pl/arduino/rozwiazania-i-algorytmy/odczyty-pitch-roll-oraz-filtr-kalmana.html
-    GIT: https://github.com/jarzebski/Arduino-KalmanFilter
-    Web: http://www.jarzebski.pl
-    (c) 2014 by Korneliusz Jarzebski
-*/
-
-
 #include <Wire.h>
 #include <MPU6050.h>
 #include <KalmanFilter.h>
+
+#define CALIBRATION_ON true
 
 MPU6050 mpu;
 
@@ -26,23 +19,22 @@ float tempC = 0.0;
 
 bool outputJson = false; 
 
-void setup() 
-{
+void setup() {
   Serial.begin(115200);
 
   // Initialize MPU6050
-  while(!mpu.begin(MPU6050_SCALE_2000DPS, MPU6050_RANGE_2G))
-  {
+  while(!mpu.begin(MPU6050_SCALE_2000DPS, MPU6050_RANGE_2G)) {
     delay(500);
   }
  
   // Calibrate gyroscope. The calibration must be at rest.
   // If you don't want calibrate, comment this line.
+  #ifdef CALIBRATION
   mpu.calibrateGyro();
+  #endif
 }
 
-void loop()
-{
+void loop() {
   Vector acc = mpu.readNormalizeAccel();
   Vector gyr = mpu.readNormalizeGyro();
 
