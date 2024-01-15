@@ -3,6 +3,7 @@
 #include <KalmanFilter.h>
 
 #define CALIBRATION_ON true
+#define BAUD_RATE 115200
 
 MPU6050 mpu;
 
@@ -18,7 +19,7 @@ float kalRoll = 0;
 float tempC = 0.0; 
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(BAUD_RATE);
 
   // Initialize MPU6050
   while(!mpu.begin(MPU6050_SCALE_2000DPS, MPU6050_RANGE_2G)) {
