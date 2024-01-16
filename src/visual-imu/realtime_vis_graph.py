@@ -1,5 +1,4 @@
 import serial
-import json
 import time
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,20 +8,24 @@ import socket
 
 kalmanPitch = []
 kalmanRoll = []
+kalmanYaw = []
+
 accPitch = []
 accRoll = []
+accYaw = []
+
 accX = []
 accY = []
 accZ = []
+
 gyroX = []
 gyroY = []
 gyroZ = []
 
 
 # PORT = "/dev/cu.usbmodem14201"
-PORT = "COM4"
-BAUD_RATE = 115200
-jsonOutput = False
+# PORT = "COM4"
+# BAUD_RATE = 115200
 params = ""
 
 plt.ion() ## Note this correction
@@ -46,11 +49,11 @@ def init_parse_arg():
 
     # remote manager.
     parser.add_argument('-s', '--serial', type=bool, default=False,
-                        help='Connect in serial mode for data.')
+                        help='Connect in serial mode for data. Default is False')
 
     # serial baub rate.
-    parser.add_argument('-b', '--baud_rate', type=int, default=115200,
-                        help='To set the serial baud rate, default is 115200.')
+    parser.add_argument('-b', '--baud_rate', type=int, default=921600,
+                        help='To set the serial baud rate, default is 921600.')
 
     # serial port
     parser.add_argument('-c', '--serial_port', type=str, default="/dev/cu.usbmodem14201",
@@ -70,62 +73,44 @@ def init_parse_arg():
 
 
 def read_imu_data():
-  global kalmanPitch, kalmanRoll, accPitch, accRoll, accX, accY, accZ, gyroX, gyroY, gyroZ, jsonOutput
+  global params, kalmanPitch, kalmanRoll, kalmanYaw, accPitch, accRoll, accYaw, accX, accY, accZ, gyroX, gyroY, gyroZ
 
-  ser = serial.Serial(PORT, BAUD_RATE)
+  ser = serial.Serial(params.serial_port, params.baud_rate)
   epoch = 0
   while True:
     try:
-      # {"imu": {"accelerometer" : { "pitch": -2.95, "roll": 5.08, "x": 0.53, "y": 0.91, "z": 10.22 }, "gyro" : { "x": 0.07, "y": 0.03, "z": -0.07 }, "kalman": { "pitch": -3.20, "roll": 5.25}}}
       data = ser.readline().decode("utf-8") 
-      if(jsonOutput == True):
-        data = data.replace("\'", "\"")
-        # print(data)
 
-        jdata = json.loads(data)
-        kpitch = jdata['imu']['kalman']['pitch']
-        kroll = jdata['imu']['kalman']['roll']
-        acc_pitch = jdata['imu']['accelerometer']['pitch']
-        acc_roll = jdata['imu']['accelerometer']['roll']
-        epoch = time.time()
-        print(str(epoch) + " >> pitch: " + str(kpitch) + ", roll: " + str(kroll))
+      # acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, acc_pitch, acc_roll, acc_yaw, kalman_pitch, kalman_roll, kalman_yaw, tempC
+      token = data.split(',')
 
-        kalmanPitch.append(float(kpitch))
-        kalmanRoll.append(float(kroll))
-        kalmanPitch = kalmanPitch[-3000:] 
-        kalmanRoll = kalmanRoll[-3000:]
+      accX.append(float(token[0]))
+      accY.append(float(token[1]))
+      accZ.append(float(token[2]))
+      accX = accX[-3000:]
+      accY = accY[-3000:]
+      accZ = accZ[-3000:]
 
-        accPitch.append(acc_pitch)
-        accRoll.append(acc_roll)
-        accPitch = accPitch[-3000:]
-        accRoll = accRoll[-3000:]
-      else:
-        # acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z, acc_pitch, acc_roll, kalman_pitch, kalman_roll, tempC
-        token = data.split(',')
+      gyroX.append(float(token[3]))
+      gyroY.append(float(token[4]))
+      gyroZ.append(float(token[5]))
+      gyroX = gyroX[-3000:]
+      gyroY = gyroY[-3000:]
+      gyroZ = gyroZ[-3000:]
 
-        accX.append(float(token[0]))
-        accY.append(float(token[1]))
-        accZ.append(float(token[2]))
-        accX = accX[-3000:]
-        accY = accY[-3000:]
-        accZ = accZ[-3000:]
+      accPitch.append(float(token[6]))
+      accRoll.append(float(token[7]))
+      accYaw.append(float(token[8]))
+      accPitch = accPitch[-3000:]
+      accRoll = accRoll[-3000:]
+      accYaw = accYaw[-3000:]
 
-        gyroX.append(float(token[3]))
-        gyroY.append(float(token[4]))
-        gyroZ.append(float(token[5]))
-        gyroX = gyroX[-3000:]
-        gyroY = gyroY[-3000:]
-        gyroZ = gyroZ[-3000:]
-
-        accPitch.append(float(token[6]))
-        accRoll.append(float(token[7]))
-        accPitch = accPitch[-3000:]
-        accRoll = accRoll[-3000:]
-
-        kalmanPitch.append(float(token[8]))
-        kalmanRoll.append(float(token[9]))
-        kalmanPitch = kalmanPitch[-3000:] 
-        kalmanRoll = kalmanRoll[-3000:]
+      kalmanPitch.append(float(token[9]))
+      kalmanRoll.append(float(token[10]))
+      kalmanYaw.append(float(token[11]))
+      kalmanPitch = kalmanPitch[-3000:] 
+      kalmanRoll = kalmanRoll[-3000:]
+      kalmanYaw = kalmanYaw[-3000:]
 
     except Exception as exp:
       print("Got exception in serial: " + str(exp))
@@ -134,7 +119,7 @@ def read_imu_data():
 
 def read_imu_data_sock():
   
-  global params, kalmanPitch, kalmanRoll, accPitch, accRoll, accX, accY, accZ, gyroX, gyroY, gyroZ, jsonOutput
+  global params, kalmanPitch, kalmanRoll, kalmanYaw, accPitch, accRoll, accYaw, accX, accY, accZ, gyroX, gyroY, gyroZ
 
 
   # Create a TCP/IP socket
@@ -150,35 +135,39 @@ def read_imu_data_sock():
         # print("Waiting for the data to receive.")
         data = sock.recv(1024).decode("utf-8")
         print('received ::' + str(data))
-        if jsonOutput is False:
-          try:
-            token = data.split(',')
-            if(len(token) == 11):
-              accX.append(float(token[0]))
-              accY.append(float(token[1]))
-              accZ.append(float(token[2]))
-              accX = accX[-3000:]
-              accY = accY[-3000:]
-              accZ = accZ[-3000:]
 
-              gyroX.append(float(token[3]))
-              gyroY.append(float(token[4]))
-              gyroZ.append(float(token[5]))
-              gyroX = gyroX[-3000:]
-              gyroY = gyroY[-3000:]
-              gyroZ = gyroZ[-3000:]
+        try:
+          token = data.split(',')
+          if(len(token) == 11):
+            accX.append(float(token[0]))
+            accY.append(float(token[1]))
+            accZ.append(float(token[2]))
+            accX = accX[-3000:]
+            accY = accY[-3000:]
+            accZ = accZ[-3000:]
 
-              accPitch.append(float(token[6]))
-              accRoll.append(float(token[7]))
-              accPitch = accPitch[-3000:]
-              accRoll = accRoll[-3000:]
+            gyroX.append(float(token[3]))
+            gyroY.append(float(token[4]))
+            gyroZ.append(float(token[5]))
+            gyroX = gyroX[-3000:]
+            gyroY = gyroY[-3000:]
+            gyroZ = gyroZ[-3000:]
 
-              kalmanPitch.append(float(token[8]))
-              kalmanRoll.append(float(token[9]))
-              kalmanPitch = kalmanPitch[-3000:] 
-              kalmanRoll = kalmanRoll[-3000:]
-          except Exception as ex:
-            print("Got exception in data handling. " + str(ex))
+            accPitch.append(float(token[6]))
+            accRoll.append(float(token[7]))
+            accYaw.append(float(token[8]))
+            accPitch = accPitch[-3000:]
+            accRoll = accRoll[-3000:]
+            accYaw = accYaw[-3000:]
+
+            kalmanPitch.append(float(token[9]))
+            kalmanRoll.append(float(token[10]))
+            kalmanYaw.append(float(token[11]))
+            kalmanPitch = kalmanPitch[-3000:] 
+            kalmanRoll = kalmanRoll[-3000:]
+            kalmanYaw = kalmanYaw[-3000:]
+        except Exception as ex:
+          print("Got exception in data handling. " + str(ex))
 
   finally:
       print('closing socket')
@@ -186,7 +175,7 @@ def read_imu_data_sock():
 
 
 def main():
-  global kalmanPitch, kalmanRoll, accX, accY, accZ, gyroX, gyroY, gyroZ, params
+  global kalmanPitch, kalmanRoll, kalmanYaw, accPitch, accRoll, accYaw, accX, accY, accZ, gyroX, gyroY, gyroZ, params
 
   params = init_parse_arg()
 
@@ -210,11 +199,13 @@ def main():
     kalmanPlot.clear()
     kalmanPlot.plot(kalmanPitch, label="Pitch [Kalman]")
     kalmanPlot.plot(kalmanRoll, label="Roll [Kalman]")
+    kalmanPlot.plot(kalmanYaw, label="Yaw [kalman]")
     kalmanPlot.legend()
     
     accPlot.clear()
     accPlot.plot(accPitch, label="Pitch [Acc]")
     accPlot.plot(accRoll, label="Roll [Acc]")
+    accPlot.plot(accYaw, label="Yaw [Acc]")
     accPlot.legend()
 
     accAxisPlot.clear()

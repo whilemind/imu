@@ -3,24 +3,29 @@
 #include <KalmanFilter.h>
 
 #define CALIBRATION_ON true
-#define BAUD_RATE 115200
+#define BAUD_RATE 921600
 
 MPU6050 mpu;
 
 KalmanFilter kalmanX(0.001, 0.003, 0.03);
 KalmanFilter kalmanY(0.001, 0.003, 0.03);
+KalmanFilter kalmanZ(0.001, 0.003, 0.03);
 
 float accPitch = 0;
 float accRoll = 0;
+float accYaw = 0.0;
 
-float kalPitch = 0;
-float kalRoll = 0;
+float kalPitch = 0.0;
+float kalRoll = 0.0;
+float kalYaw = 0.0;
 
 float tempC = 0.0; 
 
 void setup() {
   Serial.begin(BAUD_RATE);
-
+  
+  // Wire.setClock(400000L);
+  
   // Initialize MPU6050
   while(!mpu.begin(MPU6050_SCALE_2000DPS, MPU6050_RANGE_2G)) {
     delay(500);
@@ -40,10 +45,12 @@ void loop() {
   // Calculate Pitch & Roll from accelerometer (deg)
   accPitch = -(atan2(acc.XAxis, sqrt(acc.YAxis*acc.YAxis + acc.ZAxis*acc.ZAxis))*180.0)/M_PI;
   accRoll  = (atan2(acc.YAxis, acc.ZAxis)*180.0)/M_PI;
+  accYaw = (atan2(acc.XAxis, acc.YAxis)*180.0)/M_PI;
 
   // Kalman filter
   kalPitch = kalmanY.update(accPitch, gyr.YAxis);
   kalRoll = kalmanX.update(accRoll, gyr.XAxis);
+  kalYaw = kalmanZ.update(accYaw, gyr.ZAxis);
 
   tempC = mpu.readTemperature();
 
@@ -64,11 +71,15 @@ void loop() {
   Serial.print(accPitch);
   Serial.print(", ");
   Serial.print(accRoll);
+  Serial.print(", ");
+  Serial.print(accYaw);
 
   Serial.print(", ");
   Serial.print(kalPitch);
   Serial.print(", ");
   Serial.print(kalRoll);
+  Serial.print(", ");
+  Serial.print(kalYaw);
 
   Serial.print(", ");
   Serial.print(tempC);

@@ -8,17 +8,18 @@ import datetime
 import socket
 
 # PORT = "/dev/cu.usbmodem14201"
-PORT = "COM4"
-BAUD_RATE = 115200
+# PORT = "COM6"
+# BAUD_RATE = 921600
 FILE_EXT = ".dimu"
 MONITORING_INTERVAL = 10.0 # secs
 g_data_cache = []
 g_data_for_client = []
 g_file_name = ""
 g_mutex_file = threading.Lock()
-g_new_file_interval = 60 # mins
+# g_new_file_interval = 60 # mins
 g_has_client = False
 g_log_folder = "../log"
+params = ""
 
 def init_parse_arg():
     parser = argparse.ArgumentParser(description='IMU - data processing and analysing tools.')
@@ -28,7 +29,7 @@ def init_parse_arg():
                         help='Open the remote manager..')
 
     # serial baub rate.
-    parser.add_argument('-b', '--baud_rate', type=int, default=115200,
+    parser.add_argument('-b', '--baud_rate', type=int, default=921600,
                         help='To set the serial baud rate, default is 115200.')
 
     # serial port
@@ -46,15 +47,15 @@ def init_parse_arg():
 
 
 def gen_new_file(file_prefix):
-  global g_file_name, g_new_file_interval, FILE_EXT
+  global g_file_name, FILE_EXT, params
   tz = datetime.timezone.utc
-  ft = "%Y%m%d_%H%M%S"
+  ft = "%Y%m%d_%H%M%S_%Z"
 
   while True:
     with g_mutex_file:
       g_file_name = file_prefix + datetime.datetime.now(tz=tz).strftime(ft) + FILE_EXT
       # print("generate new file name: " + g_file_name)
-    time.sleep(g_new_file_interval * 60)
+    time.sleep(params.file_duration * 60)
 
 
 def write_imu_data(log_folder_path):
@@ -78,9 +79,9 @@ def write_imu_data(log_folder_path):
         
 
 def read_imu_data():
-  global g_data_cache
+  global g_data_cache, params
 
-  ser = serial.Serial(PORT, BAUD_RATE)
+  ser = serial.Serial(params.port, params.baud_rate)
 
   while True:
     try:
@@ -96,11 +97,11 @@ def read_imu_data():
   
 
 def monitor_operation(interval):
-  global g_data_cache, g_data_for_client
+  global g_data_cache, g_data_for_client, params
 
   while True:
     # TODO: Current log file size in the verbose
-    print("Cache queue length is: " + str(len(g_data_cache)) + " and remote queue len: " + str(len(g_data_for_client)))
+    print("Cache queue length is: " + str(len(g_data_cache)) + ", remote queue len: " + str(len(g_data_for_client)) + ", interval: " + str(params.file_duration) + " mins")
     print("Current log file name: " + g_file_name)
     time.sleep(interval)
 
@@ -135,7 +136,7 @@ def remote_client():
 
 
 def main():
-  global kalmanPitch, kalmanRoll, g_log_folder
+  global kalmanPitch, kalmanRoll, g_log_folder, params
 
   params = init_parse_arg()
 
